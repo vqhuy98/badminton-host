@@ -368,19 +368,39 @@ export async function rebalanceUnplayed(sessionId: string) {
 }
 
 /** Thay nguoi vang bang nguoi khac trong moi tran chua danh. */
-export async function substitute(sessionId: string, outId: string, inId: string) {
+export interface SubResult {
+  changed: number;
+  /** Doi hinh truoc khi doi, de hoan tac chinh xac. */
+  before: { id: string; teamA: [string, string]; teamB: [string, string] }[];
+}
+
+/**
+ * Doi `outId` thanh `inId` o cac tran CHUA DANH.
+ *
+ * Tra ve ban chup doi hinh cu. KHONG duoc hoan tac bang cach goi nguoc
+ * substitute(inId, outId): phep nay khong phai nghich dao, vi lan goi nguoc se
+ * dung vao ca nhung tran ma `inId` von da co san tu truoc.
+ */
+export async function substitute(sessionId: string, outId: string, inId: string): Promise<SubResult> {
   const all = await db.matches.where('sessionId').equals(sessionId).toArray();
   const swap = (t: [string, string]): [string, string] =>
     t.map((x) => (x === outId ? inId : x)) as [string, string];
-  let n = 0;
+  const before: SubResult['before'] = [];
   for (const m of all) {
     if (m.state !== 'queued') continue;
     if (![...m.teamA, ...m.teamB].includes(outId)) continue;
     if ([...m.teamA, ...m.teamB].includes(inId)) continue;
+    before.push({ id: m.id, teamA: [...m.teamA] as [string, string], teamB: [...m.teamB] as [string, string] });
     await db.matches.update(m.id, { teamA: swap(m.teamA), teamB: swap(m.teamB) });
-    n++;
   }
-  return n;
+  return { changed: before.length, before };
+}
+
+/** Tra doi hinh ve dung nhu truoc khi doi nguoi. */
+export async function undoSubstitute(before: SubResult['before']): Promise<void> {
+  await db.transaction('rw', db.matches, async () => {
+    for (const b of before) await db.matches.update(b.id, { teamA: b.teamA, teamB: b.teamB });
+  });
 }
 
 /** Rut cac tran con lai xuong the thuc ngan hon de kip vach. */

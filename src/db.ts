@@ -1,11 +1,12 @@
 import Dexie, { type Table } from 'dexie';
-import type { Match, Player, RatingEvent, Session } from './types';
+import type { HostSettings, Match, Player, RatingEvent, Session } from './types';
 
 export class BadmintonDB extends Dexie {
   players!: Table<Player, string>;
   sessions!: Table<Session, string>;
   matches!: Table<Match, string>;
   ratingEvents!: Table<RatingEvent, number>;
+  settings!: Table<HostSettings, string>;
 
   constructor() {
     super('badminton-host');
@@ -14,6 +15,10 @@ export class BadmintonDB extends Dexie {
       sessions: 'id, date, createdAt',
       matches: 'id, sessionId, order, state, [sessionId+order]',
       ratingEvents: '++id, matchId, playerId, at',
+    });
+    // v2: them cai dat cua host (tai khoan nhan tien). Dexie tu giu nguyen du lieu cu.
+    this.version(2).stores({
+      settings: 'key',
     });
   }
 }
@@ -31,16 +36,28 @@ export interface Backup {
   sessions: Session[];
   matches: Match[];
   ratingEvents: RatingEvent[];
+  /** Co tu ban v2. File cu khong co truong nay — nhap lai van chay binh thuong. */
+  settings?: HostSettings[];
 }
 
 export async function exportBackup(): Promise<Backup> {
-  const [players, sessions, matches, ratingEvents] = await Promise.all([
+  const [players, sessions, matches, ratingEvents, settings] = await Promise.all([
     db.players.toArray(),
     db.sessions.toArray(),
     db.matches.toArray(),
     db.ratingEvents.toArray(),
+    db.settings.toArray(),
   ]);
-  return { app: 'badminton-host', version: 1, exportedAt: Date.now(), players, sessions, matches, ratingEvents };
+  return { app: 'badminton-host', version: 1, exportedAt: Date.now(), players, sessions, matches, ratingEvents, settings };
+}
+
+export async function getHostSettings(): Promise<HostSettings> {
+  return (await db.settings.get('host')) ?? { key: 'host' };
+}
+
+export async function saveHostSettings(patch: Partial<HostSettings>): Promise<void> {
+  const cur = await getHostSettings();
+  await db.settings.put({ ...cur, ...patch, key: 'host' });
 }
 
 export async function downloadBackup() {
@@ -126,7 +143,10 @@ export async function importBackup(data: Backup): Promise<ImportReport> {
     }
   }
   if (data.ratingEvents?.length) await db.ratingEvents.bulkPut(data.ratingEvents.map(({ id: _id, ...r }) => r as RatingEvent));
+  const st = data.settings;
+  if (st && st.length) await db.settings.bulkPut(st);
   return report;
+
 }
 
 // Chi o dev: mo db ra window de smoke-test va do du lieu nhanh.

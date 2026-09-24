@@ -15,6 +15,8 @@ import {
   removeAttendee,
   schedulablePlayerIds,
   setAttendStatus,
+  substitute,
+  undoSubstitute,
   syncScheduleWithRoster,
   updatePlayer,
 } from '../lib/actions';
@@ -39,6 +41,7 @@ export default function RosterTab({ session }: { session: Session }) {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<Player | null>(null);
   const [picking, setPicking] = useState<string | null>(null);
+  const [swapping, setSwapping] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -267,6 +270,12 @@ export default function RosterTab({ session }: { session: Session }) {
             <p className="my-3 text-center text-xs text-slate-400">
               “Đang nghỉ” và “Về rồi” đều bị gỡ khỏi các trận chưa đánh.
             </p>
+            {hasSchedule && (
+              <Button variant="subtle" className="mb-2 w-full"
+                      onClick={() => { setSwapping(picking); setPicking(null); }}>
+                Đổi người này trong các trận chưa đánh
+              </Button>
+            )}
             <div className="grid grid-cols-2 gap-2 border-t border-line pt-3">
               <Button variant="ghost" className="flex items-center justify-center gap-2"
                       onClick={() => { setPicking(null); if (p) setEditing(p); }}>
@@ -276,6 +285,47 @@ export default function RosterTab({ session }: { session: Session }) {
                       onClick={() => onRemove(picking)}>
                 <IconTrash className="h-4 w-4" /> Bỏ khỏi buổi
               </Button>
+            </div>
+          </Sheet>
+        );
+      })()}
+
+      {swapping && (() => {
+        const ra = byId.get(swapping);
+        // Chi doi duoc sang nguoi DA TOI va chua co trong buoi truot cua nguoi kia.
+        const ungVien = session.attendees
+          .filter((a) => a.status === 'arrived' && a.playerId !== swapping)
+          .map((a) => byId.get(a.playerId))
+          .filter((p): p is Player => !!p);
+        return (
+          <Sheet title={`Đổi ${ra?.name ?? ''} sang ai?`} onClose={() => setSwapping(null)}>
+            <p className="mb-3 text-sm text-slate-400">
+              Chỉ đổi ở những trận <b>chưa đánh</b>. Trận đã có tỉ số giữ nguyên.
+              App bỏ qua trận nào mà người được chọn đã có mặt.
+            </p>
+            <div className="space-y-2">
+              {ungVien.map((v) => (
+                <button key={v.id}
+                  onClick={async () => {
+                    setSwapping(null);
+                    const r = await substitute(session.id, swapping, v.id);
+                    if (!r.changed) {
+                      toast(`Không có trận chưa đánh nào để đổi ${ra?.name} sang ${v.name}.`, { tone: 'warn' });
+                      return;
+                    }
+                    toast(`Đã đổi ${ra?.name} → ${v.name} ở ${r.changed} trận.`, {
+                      undo: async () => {
+                        await undoSubstitute(r.before);
+                        toast(`Đã trả lại đội hình cũ ở ${r.before.length} trận.`);
+                      },
+                    });
+                  }}
+                  className="flex w-full items-center gap-2 rounded-xl bg-panel2 px-4 py-4 text-left active:bg-line">
+                  <span className="min-w-0 flex-1 truncate font-semibold">{v.name}</span>
+                  <Chip tone="teal">{v.levelLabel}</Chip>
+                </button>
+              ))}
+              {!ungVien.length && <p className="text-sm text-slate-400">Chưa có ai khác đã tới để đổi.</p>}
             </div>
           </Sheet>
         );

@@ -132,3 +132,97 @@ export function feeForTargetProfit(s: Session, targetProfit: number): number {
 }
 
 export const formatVnd = (v: number) => new Intl.NumberFormat('vi-VN').format(Math.round(v)) + 'đ';
+
+export type FeeMode = 'even' | 'matches' | 'time';
+
+export const FEE_MODE_LABEL: Record<FeeMode, string> = {
+  even: 'Chia đều',
+  matches: 'Theo số trận',
+  time: 'Theo thời gian có mặt',
+};
+
+export interface Payer {
+  playerId: string;
+  female: boolean;
+  /** So tran da danh. */
+  matches: number;
+  /** So phut co mat tai san. */
+  minutes: number;
+}
+
+export interface FeeShare extends Payer {
+  /** Trong so dung de chia (1 / so tran / so phut). */
+  weight: number;
+  fee: number;
+}
+
+export interface FeeSplit {
+  mode: FeeMode;
+  shares: FeeShare[];
+  /** Muc giam cho nu thuc su ap dung. */
+  discount: number;
+  clamped: boolean;
+  /** Da quay ve chia deu vi khong ai co so lieu (chua danh tran nao). */
+  fellBack: boolean;
+  expected: number;
+  profit: number;
+}
+
+/**
+ * Chia tien cho tung nguoi theo mot trong ba cach, van giu muc giam cho nu.
+ *
+ *   phi_i = lam_tron_len_5k( base * w_i  -  (nu ? d : 0) )
+ *   base  = (can_thu + so_nu * d) / tong_w
+ *
+ * Voi 'even' thi moi w_i = 1 nen ket qua trung khop voi cach chia cu.
+ *
+ * Muc giam d bi chan de khong nguoi nu nao phai tra so am. Dieu kien
+ * base * w_min >= d, thay base vao va rut gon duoc:
+ *   d <= can_thu * w_min / (tong_w - so_nu * w_min)
+ */
+export function splitFees(s: Session, people: Payer[], mode: FeeMode, targetProfit = 0): FeeSplit {
+  const need = computeMoney(s).totalCost + targetProfit;
+  const rong: FeeSplit = {
+    mode, shares: [], discount: 0, clamped: false, fellBack: false,
+    expected: 0, profit: -computeMoney(s).totalCost,
+  };
+  if (!people.length) return rong;
+
+  const raw = (p: Payer) =>
+    mode === 'matches' ? Math.max(0, p.matches) : mode === 'time' ? Math.max(0, p.minutes) : 1;
+
+  let w = people.map(raw);
+  // Chua ai danh tran nao / chua ghi gio -> chia deu, va noi ro la da quay ve.
+  const fellBack = w.every((x) => x <= 0);
+  if (fellBack) w = people.map(() => 1);
+
+  const sumW = w.reduce((a, b) => a + b, 0);
+  const females = people.filter((p) => p.female).length;
+  const males = people.length - females;
+
+  let d = 0;
+  if (males > 0 && females > 0) {
+    const wMinNu = Math.min(...people.map((p, i) => (p.female ? w[i] : Infinity)));
+    const mau = sumW - females * wMinNu;
+    const tran = mau > 0 ? (need * wMinNu) / mau : femaleDiscountOf(s);
+    d = roundDown5k(Math.max(0, Math.min(femaleDiscountOf(s), tran)));
+  }
+
+  const base = (need + females * d) / sumW;
+  const shares: FeeShare[] = people.map((p, i) => ({
+    ...p,
+    weight: w[i],
+    fee: Math.max(0, roundUp5k(base * w[i] - (p.female ? d : 0))),
+  }));
+  const expected = shares.reduce((t, x) => t + x.fee, 0);
+
+  return {
+    mode: fellBack ? 'even' : mode,
+    shares,
+    discount: d,
+    clamped: d < femaleDiscountOf(s) && males > 0 && females > 0,
+    fellBack,
+    expected,
+    profit: expected - computeMoney(s).totalCost,
+  };
+}

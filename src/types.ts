@@ -74,6 +74,8 @@ export interface Session {
   defaultFee: number;
   /** Nu dong it hon nam bao nhieu dong. Buoi cu khong co truong nay -> DEFAULT_FEMALE_DISCOUNT. */
   femaleDiscount?: number;
+  /** Cach chia tien: deu / theo so tran / theo thoi gian co mat. Mac dinh 'even'. */
+  feeMode?: 'even' | 'matches' | 'time';
   attendees: Attendee[];
   /** Danh sach nguoi chi duoc minPerPlayer tran (khong du cho len max). */
   shortChanged: string[];
@@ -109,4 +111,14 @@ export interface RatingEvent {
   after: number;
   delta: number;
   at: number;
+}
+
+/** Cai dat chung cua host, dung chung cho moi buoi. */
+export interface HostSettings {
+  /** Khoa co dinh — chi co mot ban ghi. */
+  key: 'host';
+  /** Ma BIN ngan hang nhan tien (6 so). */
+  bankBin?: string;
+  accountNumber?: string;
+  accountName?: string;
 }

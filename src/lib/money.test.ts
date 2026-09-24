@@ -6,6 +6,8 @@ import {
   feeForTargetProfit,
   feePlan,
   femaleDiscountOf,
+  splitFees,
+  type Payer,
 } from './money';
 import { DEFAULT_SESSION } from './actions';
 import type { Gender, Session } from '../types';
@@ -148,5 +150,69 @@ describe('chia muc thu theo gioi tinh', () => {
     const old = session();
     delete (old as Partial<Session>).femaleDiscount;
     expect(femaleDiscountOf(old)).toBe(DEFAULT_FEMALE_DISCOUNT);
+  });
+});
+
+describe('chia tien theo so tran / thoi gian', () => {
+  const s660 = (femaleDiscount = 20000) =>
+    session({ shuttlesBack: 3, femaleDiscount, attendees: heads(14) });   // tong chi 660k
+  const ai = (n: number, f: (i: number) => Partial<Payer> = () => ({})): Payer[] =>
+    Array.from({ length: n }, (_, i) => ({
+      playerId: `p${i}`, female: false, matches: 7, minutes: 120, ...f(i),
+    }));
+
+  it('chia deu cho ra dung ket qua nhu cach cu', () => {
+    const s = s660();
+    const nguoi = ai(14, (i) => ({ female: i >= 10 }));   // 10 nam 4 nu
+    const moi = splitFees(s, nguoi, 'even');
+    const cu = feePlan(s, (id) => (Number(id.slice(1)) >= 10 ? 'F' : 'M'));
+    expect(moi.shares.find((x) => !x.female)!.fee).toBe(cu.male);
+    expect(moi.shares.find((x) => x.female)!.fee).toBe(cu.female);
+  });
+
+  it('danh nhieu tran thi tra nhieu hon', () => {
+    const r = splitFees(s660(0), ai(14, (i) => ({ matches: i < 3 ? 5 : 7 })), 'matches');
+    const it_ = r.shares.find((x) => x.matches === 5)!.fee;
+    const nhieu = r.shares.find((x) => x.matches === 7)!.fee;
+    expect(it_).toBeLessThan(nhieu);
+    // don gia moi tran phai xap xi nhau — do chenh chi con do lam tron 5k
+    expect(Math.abs(it_ / 5 - nhieu / 7)).toBeLessThan(1200);
+  });
+
+  it('ve som tra it hon — tinh theo thoi gian co mat', () => {
+    const r = splitFees(s660(0), ai(14, (i) => ({ minutes: i < 2 ? 60 : 120 })), 'time');
+    expect(r.shares[0].fee).toBeLessThan(r.shares[13].fee);
+    expect(r.shares[0].fee / r.shares[13].fee).toBeCloseTo(0.5, 1);
+  });
+
+  it('khong bao gio thu hut tien san, o ca ba cach chia', () => {
+    for (const mode of ['even', 'matches', 'time'] as const) {
+      for (const nu of [0, 1, 4, 7, 13, 14]) {
+        const r = splitFees(s660(), ai(14, (i) => ({
+          female: i < nu, matches: 4 + (i % 4), minutes: 40 + i * 6,
+        })), mode);
+        expect(r.expected).toBeGreaterThanOrEqual(660000);
+        expect(r.shares.every((x) => x.fee >= 0)).toBe(true);
+      }
+    }
+  });
+
+  it('chua danh tran nao thi tu quay ve chia deu va noi ro', () => {
+    const r = splitFees(s660(), ai(14, () => ({ matches: 0 })), 'matches');
+    expect(r.fellBack).toBe(true);
+    expect(r.mode).toBe('even');
+    expect(new Set(r.shares.map((x) => x.fee)).size).toBe(1);
+  });
+
+  it('keo muc giam xuong thay vi de nu tra so am', () => {
+    // nu danh rat it + muc giam qua lon -> phai tu ha muc giam
+    const r = splitFees(s660(500000), ai(14, (i) => ({ female: i === 0, matches: i === 0 ? 1 : 7 })), 'matches');
+    expect(r.shares[0].fee).toBeGreaterThanOrEqual(0);
+    expect(r.discount).toBeLessThan(500000);
+    expect(r.expected).toBeGreaterThanOrEqual(660000);
+  });
+
+  it('khong ai thi khong vo', () => {
+    expect(splitFees(s660(), [], 'matches').shares).toEqual([]);
   });
 });
