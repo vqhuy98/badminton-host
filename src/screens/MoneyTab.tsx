@@ -94,7 +94,7 @@ export default function MoneyTab({ session }: { session: Session }) {
           <PlanBox plan={profitPlan} caption={`để lãi ${formatVnd(target)}`} />
         </div>
         {!!paying.length && (
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-400">
             Mức thấp nhất thu được {formatVnd(evenPlan.expected)} / chi {formatVnd(m.totalCost)}
             {evenPlan.profit > 0 ? ` — dư ${formatVnd(evenPlan.profit)} do làm tròn lên 5.000.` : '.'}
           </p>
@@ -116,10 +116,10 @@ export default function MoneyTab({ session }: { session: Session }) {
           </p>
         )}
         {!evenPlan.females && !!paying.length && (
-          <p className="text-xs text-slate-500">Buổi này chưa có nữ nào đã tới — mọi người thu bằng nhau.</p>
+          <p className="text-xs text-slate-400">Buổi này chưa có nữ nào đã tới — mọi người thu bằng nhau.</p>
         )}
         {!evenPlan.males && !!evenPlan.females && (
-          <p className="text-xs text-slate-500">Toàn nữ — không có ai để chênh lệch, thu đều đầu người.</p>
+          <p className="text-xs text-slate-400">Toàn nữ — không có ai để chênh lệch, thu đều đầu người.</p>
         )}
       </Card>
 
@@ -131,7 +131,7 @@ export default function MoneyTab({ session }: { session: Session }) {
           </Chip>
         </div>
         {!!offPlan && (
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-400">
             {offPlan} người đang thu khác mức hoà vốn (sửa tay hoặc đổi giới tính sau khi áp). Bấm “Áp mức…” để đồng bộ
             lại.
           </p>
@@ -158,7 +158,7 @@ export default function MoneyTab({ session }: { session: Session }) {
             </div>
           );
         })}
-        {!paying.length && <p className="text-sm text-slate-500">Chưa ai được đánh dấu “Đã tới” ở tab Người.</p>}
+        {!paying.length && <p className="text-sm text-slate-400">Chưa ai được đánh dấu “Đã tới” ở tab Người.</p>}
       </Card>
     </div>
   );

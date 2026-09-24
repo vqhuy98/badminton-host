@@ -1,6 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Banner, Button, Card, Chip, Field, Select, TextInput } from '../components/ui';
+import {
+  Banner, Button, Card, Chip, Field, IconFemale, IconMale, IconMore, IconPencil, IconTrash,
+  IconButton, Select, Sheet, TextInput, toast,
+} from '../components/ui';
 import { db } from '../db';
 import {
   addAttendee,
@@ -82,8 +85,18 @@ export default function RosterTab({ session }: { session: Session }) {
 
   async function onRemove(playerId: string) {
     const nm = byId.get(playerId)?.name ?? 'người này';
+    // Nho lai trang thai cu de hoan tac dung y — bo nguoi la thao tac mat du lieu.
+    const truoc = session.attendees.find((a) => a.playerId === playerId);
+    setPicking(null);
     await removeAttendee(session.id, playerId);
     await afterRosterChange(`Đã bỏ ${nm} khỏi buổi`);
+    toast(`Đã bỏ ${nm} khỏi buổi.`, {
+      tone: 'warn',
+      undo: async () => {
+        await addAttendee(session.id, playerId, { status: truoc?.status, fee: truoc?.fee });
+        await afterRosterChange(`Đã thêm lại ${nm}`);
+      },
+    });
   }
 
   async function onStatus(playerId: string, status: AttendStatus) {
@@ -158,7 +171,7 @@ export default function RosterTab({ session }: { session: Session }) {
                 <span className="font-semibold text-teal-300">Thêm</span>
               </button>
             ))}
-            {!suggestions.length && <p className="text-sm text-slate-500">Không có ai khớp — dùng “Thêm người mới”.</p>}
+            {!suggestions.length && <p className="text-sm text-slate-400">Không có ai khớp — dùng “Thêm người mới”.</p>}
           </div>
         )}
       </Card>
@@ -167,44 +180,26 @@ export default function RosterTab({ session }: { session: Session }) {
         {session.attendees.map((a) => {
           const p = byId.get(a.playerId);
           const st = STATUS[a.status];
+          const nu = p?.gender === 'F';
           return (
-            <div key={a.playerId} className="space-y-2 rounded-2xl border border-line bg-panel p-3">
-              <div className="flex items-center gap-2">
-                <span className="text-slate-500">{p?.gender === 'F' ? '♀' : '♂'}</span>
-                <span className="min-w-0 flex-1 truncate text-lg font-semibold">{p?.name ?? '???'}</span>
-                <Chip tone="teal">{p?.levelLabel ?? '?'}</Chip>
-                <span className="w-12 text-right text-sm text-slate-500">{p?.rating ?? ''}</span>
-                <button
-                  onClick={() => p && setEditing(p)}
-                  aria-label="Sửa thông tin"
-                  className="rounded-lg border border-line px-3 py-2 text-slate-300 active:bg-panel2"
-                >
-                  ✎
-                </button>
-                <button
-                  onClick={() => onRemove(a.playerId)}
-                  aria-label="Bỏ khỏi buổi"
-                  className="rounded-lg px-2 py-2 text-slate-500"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="flex gap-2">
-                {/* Bam lan 1 = diem danh. Cac trang thai khac nam trong nut ⋯ ben canh. */}
-                <button
-                  onClick={() => onStatus(a.playerId, a.status === 'arrived' ? 'pending' : 'arrived')}
-                  className={`flex-1 rounded-xl border py-4 text-center text-base font-bold active:opacity-80 ${st.box}`}
-                >
-                  {st.label}
-                </button>
-                <button
-                  onClick={() => setPicking(a.playerId)}
-                  aria-label="Trạng thái khác"
-                  className="w-14 shrink-0 rounded-xl border border-line bg-panel2 text-xl text-slate-300 active:bg-line"
-                >
-                  ⋯
-                </button>
-              </div>
+            <div key={a.playerId}
+                 className="flex items-center gap-2 rounded-2xl border border-line bg-panel py-1.5 pr-1.5 pl-3">
+              <span className={nu ? 'shrink-0 text-pink-400' : 'shrink-0 text-sky-400'}
+                    aria-label={nu ? 'Nữ' : 'Nam'} title={nu ? 'Nữ' : 'Nam'}>
+                {nu ? <IconFemale className="h-4 w-4" /> : <IconMale className="h-4 w-4" />}
+              </span>
+              <span className="min-w-0 flex-1 truncate font-semibold">{p?.name ?? '???'}</span>
+              <Chip tone="teal">{p?.levelLabel ?? '?'}</Chip>
+              {/* Bam lan 1 = diem danh. Cac trang thai khac nam trong menu ⋯. */}
+              <button
+                onClick={() => onStatus(a.playerId, a.status === 'arrived' ? 'pending' : 'arrived')}
+                className={`h-11 shrink-0 rounded-xl border px-3 text-sm font-bold active:opacity-80 ${st.box}`}
+              >
+                {st.label}
+              </button>
+              <IconButton label={`Tuỳ chọn cho ${p?.name ?? 'người này'}`} onClick={() => setPicking(a.playerId)}>
+                <IconMore />
+              </IconButton>
             </div>
           );
         })}
@@ -248,33 +243,43 @@ export default function RosterTab({ session }: { session: Session }) {
         {arrived >= 4 ? ` cho ${arrived} người` : ''}
       </Button>
       {arrived < 4 && (
-        <p className="text-center text-xs text-slate-500">Cần ít nhất 4 người đã tới mới xếp được lịch.</p>
+        <p className="text-center text-xs text-slate-400">Cần ít nhất 4 người đã tới mới xếp được lịch.</p>
       )}
       {started && (
-        <p className="text-center text-xs text-slate-500">
+        <p className="text-center text-xs text-slate-400">
           Các trận đã đánh và tỉ số được <b>giữ nguyên</b>. App chỉ tính lại phần chưa đánh, và thêm trận nếu
           đông người hơn.
         </p>
       )}
 
-      {picking && (
-        <Sheet title={byId.get(picking)?.name ?? 'Trạng thái'} onClose={() => setPicking(null)}>
-          <div className="space-y-2">
-            {ALL_STATUS.map((s) => (
-              <button
-                key={s}
-                onClick={() => onStatus(picking, s)}
-                className={`w-full rounded-xl border py-5 text-base font-bold ${STATUS[s].box}`}
-              >
-                {STATUS[s].label}
-              </button>
-            ))}
-          </div>
-          <p className="text-center text-xs text-slate-500">
-            “Đang nghỉ” và “Về rồi” đều bị gỡ khỏi các trận chưa đánh.
-          </p>
-        </Sheet>
-      )}
+      {picking && (() => {
+        const p = byId.get(picking);
+        return (
+          <Sheet title={p?.name ?? 'Tuỳ chọn'} onClose={() => setPicking(null)}>
+            <div className="space-y-2">
+              {ALL_STATUS.map((st) => (
+                <button key={st} onClick={() => onStatus(picking, st)}
+                        className={`w-full rounded-xl border py-4 text-base font-bold ${STATUS[st].box}`}>
+                  {STATUS[st].label}
+                </button>
+              ))}
+            </div>
+            <p className="my-3 text-center text-xs text-slate-400">
+              “Đang nghỉ” và “Về rồi” đều bị gỡ khỏi các trận chưa đánh.
+            </p>
+            <div className="grid grid-cols-2 gap-2 border-t border-line pt-3">
+              <Button variant="ghost" className="flex items-center justify-center gap-2"
+                      onClick={() => { setPicking(null); if (p) setEditing(p); }}>
+                <IconPencil className="h-4 w-4" /> Sửa thông tin
+              </Button>
+              <Button variant="danger" className="flex items-center justify-center gap-2"
+                      onClick={() => onRemove(picking)}>
+                <IconTrash className="h-4 w-4" /> Bỏ khỏi buổi
+              </Button>
+            </div>
+          </Sheet>
+        );
+      })()}
 
       {editing && (
         <EditPlayerSheet
@@ -287,23 +292,6 @@ export default function RosterTab({ session }: { session: Session }) {
           }}
         />
       )}
-    </div>
-  );
-}
-
-function Sheet({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4" onClick={onClose}>
-      <div
-        className="max-h-[85vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-2xl bg-panel p-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-center font-semibold">{title}</h2>
-        {children}
-        <Button variant="ghost" className="w-full py-4" onClick={onClose}>
-          Đóng
-        </Button>
-      </div>
     </div>
   );
 }

@@ -152,7 +152,7 @@ function Stat({ label, value, hint }: { label: string; value: number | string; h
     <div className="rounded-xl bg-panel2 p-3">
       <div className="text-2xl font-bold text-teal-300">{value}</div>
       <div className="text-xs text-slate-400">{label}</div>
-      {hint && <div className="text-[10px] text-slate-500">{hint}</div>}
+      {hint && <div className="text-[10px] text-slate-400">{hint}</div>}
     </div>
   );
 }

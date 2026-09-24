@@ -23,9 +23,9 @@ export default function PlayersScreen() {
         <Card key={p.id} className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <div className="truncate font-medium">
-              {p.name} <span className="text-xs text-slate-500">{p.gender === 'F' ? '♀' : '♂'}</span>
+              {p.name} <span className="text-xs text-slate-400">{p.gender === 'F' ? '♀' : '♂'}</span>
             </div>
-            <div className="text-xs text-slate-500">
+            <div className="text-xs text-slate-400">
               {p.matchesPlayed} trận · thắng {p.matchesPlayed ? Math.round((p.wins / p.matchesPlayed) * 100) : 0}%
               {p.facebookUrl ? ' · có FB' : ''}
             </div>
@@ -33,7 +33,7 @@ export default function PlayersScreen() {
           {p.owedBonus && <Chip tone="amber">ưu tiên</Chip>}
           <div className="text-right">
             <div className="font-bold text-teal-300">{p.rating}</div>
-            <div className="text-xs text-slate-500">{p.levelLabel}</div>
+            <div className="text-xs text-slate-400">{p.levelLabel}</div>
           </div>
           <button
             onClick={() => confirm(`Xoá ${p.name} khỏi thư viện?`) && db.players.delete(p.id)}

@@ -99,7 +99,7 @@ export default function CourtTab({ session }: { session: Session }) {
                 </div>
               </>
             ) : (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-400">
                 {upcoming.length ? 'Bấm “Bắt đầu buổi” hoặc kết thúc trận bên kia để đẩy trận lên.' : 'Hết lịch.'}
               </p>
             )}
@@ -151,7 +151,7 @@ export default function CourtTab({ session }: { session: Session }) {
             ))}
         </div>
         {!!session.shortChanged.length && (
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-slate-400">
             Chỉ được {session.minPerPlayer} trận (tổng chỗ không chia hết):{' '}
             {session.shortChanged.map(name).join(', ')} — sẽ được ưu tiên buổi sau.
           </p>
@@ -184,7 +184,7 @@ function TeamRow({ labelA, labelB }: { labelA: string[]; labelB: string[] }) {
   return (
     <div className="flex items-center gap-2 text-sm">
       <span className="flex-1 text-right font-medium">{labelA.join(' + ')}</span>
-      <span className="text-xs text-slate-500">vs</span>
+      <span className="text-xs text-slate-400">vs</span>
       <span className="flex-1 font-medium">{labelB.join(' + ')}</span>
     </div>
   );
@@ -195,7 +195,7 @@ function MatchRow({ m, name }: { m: Match; name: (id: string) => string }) {
     m.state === 'done' ? 'opacity-50' : m.state === 'playing' ? 'border-teal-600 bg-teal-950/40' : '';
   return (
     <div className={`flex items-center gap-2 rounded-xl border border-line bg-panel px-3 py-2 text-sm ${tone}`}>
-      <span className="w-6 shrink-0 text-xs text-slate-500">{m.order}</span>
+      <span className="w-6 shrink-0 text-xs text-slate-400">{m.order}</span>
       <span className="flex-1 text-right">{m.teamA.map(name).join(' + ')}</span>
       <span className="w-14 shrink-0 text-center text-xs font-bold text-slate-400">
         {m.scoreA != null && m.scoreB != null ? `${m.scoreA}–${m.scoreB}` : 'vs'}

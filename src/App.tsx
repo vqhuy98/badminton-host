@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Toaster } from './components/ui';
 import Home from './screens/Home';
 import SessionScreen from './screens/SessionScreen';
 import PlayersScreen from './screens/PlayersScreen';
@@ -34,6 +35,7 @@ export default function App() {
       {route.name === 'home' && <Home />}
       {route.name === 'players' && <PlayersScreen />}
       {route.name === 'session' && <SessionScreen sessionId={route.id} />}
+      <Toaster />
     </div>
   );
 }
