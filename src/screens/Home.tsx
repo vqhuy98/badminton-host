@@ -2,12 +2,14 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useRef, useState } from 'react';
 import { navigate } from '../App';
 import {
-  Banner, Button, Card, Chip, Field, IconPlus, NumberInput, Sheet, TextInput, toast,
+  Banner, Button, Card, Chip, ConfirmSheet, Field, IconButton, IconPlus, IconTrash,
+  NumberInput, Sheet, TextInput, toast,
 } from '../components/ui';
 import { db, downloadBackup, importBackup, type Backup } from '../db';
-import { createSession } from '../lib/actions';
+import { createSession, deleteSession, restoreSession } from '../lib/actions';
 import { computeMoney, formatVnd } from '../lib/money';
 import { sessionStatus } from '../lib/progress';
+import type { Session } from '../types';
 
 export default function Home() {
   const sessions = useLiveQuery(() => db.sessions.orderBy('createdAt').reverse().toArray(), []);
@@ -16,6 +18,7 @@ export default function Home() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [creating, setCreating] = useState(false);
   const [justMade, setJustMade] = useState<string | null>(null);
+  const [del_, setDel] = useState<Session | null>(null);
 
   const totalProfit = (sessions ?? []).reduce((t, s) => {
     const m = computeMoney(s);
@@ -78,24 +81,30 @@ export default function Home() {
           const st = sessionStatus(bySession.get(s.id) ?? []);
           const fresh = s.id === justMade;
           return (
-            <button key={s.id} onClick={() => navigate({ name: 'session', id: s.id })}
-              className={`w-full rounded-2xl border p-4 text-left active:bg-panel2 ${
+            <div key={s.id}
+              className={`flex items-center gap-1 rounded-2xl border pr-1.5 ${
                 fresh ? 'border-teal-500 bg-teal-950/40' : 'border-line bg-panel'
               }`}>
-              <div className="flex items-center justify-between gap-2">
-                <span className="min-w-0 truncate font-semibold">{s.venue || 'Chưa đặt tên sân'}</span>
-                {/* Buoi chua ai toi thi chua co lai/lo that — dung doa host bang so am tien san. */}
-                {!!m.payingHeads && (
-                  <Chip tone={m.profit >= 0 ? 'emerald' : 'rose'}>{formatVnd(m.profit)}</Chip>
-                )}
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                <Chip tone={st.tone}>{st.label}</Chip>
-                <span className="truncate text-sm text-slate-400">
-                  {s.date} · {s.courtCount} sân · {s.attendees.length} người
-                </span>
-              </div>
-            </button>
+              <button onClick={() => navigate({ name: 'session', id: s.id })}
+                      className="min-w-0 flex-1 rounded-2xl p-4 text-left active:bg-panel2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 truncate font-semibold">{s.venue || 'Chưa đặt tên sân'}</span>
+                  {/* Buoi chua ai toi thi chua co lai/lo that — dung doa host bang so am tien san. */}
+                  {!!m.payingHeads && (
+                    <Chip tone={m.profit >= 0 ? 'emerald' : 'rose'}>{formatVnd(m.profit)}</Chip>
+                  )}
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <Chip tone={st.tone}>{st.label}</Chip>
+                  <span className="truncate text-sm text-slate-400">
+                    {s.date} · {s.courtCount} sân · {s.attendees.length} người
+                  </span>
+                </div>
+              </button>
+              <IconButton label={`Xoá buổi ${s.venue || 'chưa đặt tên'}`} tone="danger" onClick={() => setDel(s)}>
+                <IconTrash className="h-4 w-4" />
+              </IconButton>
+            </div>
           );
         })}
         {sessions?.length === 0 && (
@@ -104,6 +113,32 @@ export default function Home() {
           </Card>
         )}
       </div>
+
+      {del_ && (
+        <ConfirmSheet
+          title="Xoá buổi này?"
+          confirmLabel="Xoá buổi"
+          onClose={() => setDel(null)}
+          body={
+            <>
+              <b>{del_.venue || 'Buổi chưa đặt tên'}</b> — {del_.date}, {del_.attendees.length} người
+              {(bySession.get(del_.id)?.length ?? 0) ? `, ${bySession.get(del_.id)!.length} trận` : ''}.
+              <br />
+              Xoá xong vẫn hoàn tác được ngay sau đó.
+            </>
+          }
+          onConfirm={async () => {
+            const s0 = del_;
+            setDel(null);
+            const snap = await deleteSession(s0.id);
+            const nm = s0.venue || 'Buổi chưa đặt tên';
+            toast(`Đã xoá buổi “${nm}”.`, {
+              tone: 'warn',
+              undo: async () => { await restoreSession(snap); toast(`Đã khôi phục “${nm}”.`); },
+            });
+          }}
+        />
+      )}
 
       {creating && (
         <NewSessionSheet

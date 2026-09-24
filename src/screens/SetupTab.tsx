@@ -1,7 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Banner, Button, Card, Field, NumberInput, Select, TextInput } from '../components/ui';
+import { useState } from 'react';
+import { Banner, Button, Card, ConfirmSheet, Field, NumberInput, Select, TextInput, toast } from '../components/ui';
 import { db } from '../db';
-import { notSchedulable, previewShape, schedulablePlayerIds } from '../lib/actions';
+import { deleteSession, notSchedulable, previewShape, restoreSession, schedulablePlayerIds } from '../lib/actions';
 import type { Session } from '../types';
 
 export default function SetupTab({ session }: { session: Session }) {
@@ -10,6 +11,9 @@ export default function SetupTab({ session }: { session: Session }) {
   // Da co tran dau tien lan san -> nhung thong so dinh hinh lich khong duoc doi nua,
   // vi lich da xep va da co ket qua dua tren chung.
   const locked = !!matches?.some((m) => m.state !== 'queued');
+  const matchCount = matches?.length ?? 0;
+  const scoredCount = matches?.filter((m) => m.scoreA != null).length ?? 0;
+  const [confirmDel, setConfirmDel] = useState(false);
   // Chi tinh nguoi DA TOI — day cung la nhung nguoi se duoc xep lich.
   const n = schedulablePlayerIds(session).length;
   const waiting = notSchedulable(session).length;
@@ -130,19 +134,39 @@ export default function SetupTab({ session }: { session: Session }) {
         )}
       </Card>
 
-      <Button
-        variant="ghost"
-        className="w-full"
-        onClick={async () => {
-          if (confirm('Xoá buổi này và toàn bộ lịch của nó?')) {
-            await db.matches.where('sessionId').equals(session.id).delete();
-            await db.sessions.delete(session.id);
-            location.hash = '#/';
-          }
-        }}
-      >
+      <Button variant="ghost" className="w-full" onClick={() => setConfirmDel(true)}>
         Xoá buổi
       </Button>
+
+      {confirmDel && (
+        <ConfirmSheet
+          title="Xoá buổi này?"
+          confirmLabel="Xoá buổi"
+          onClose={() => setConfirmDel(false)}
+          body={
+            <>
+              <b>{session.venue || 'Buổi chưa đặt tên'}</b> — {session.attendees.length} người
+              {matchCount ? `, ${matchCount} trận` : ''}
+              {scoredCount ? ` (${scoredCount} trận đã có tỉ số)` : ''}.
+              <br />
+              Xoá xong vẫn hoàn tác được ngay sau đó.
+            </>
+          }
+          onConfirm={async () => {
+            setConfirmDel(false);
+            const nm = session.venue || 'Buổi chưa đặt tên';
+            const snap = await deleteSession(session.id);
+            location.hash = '#/';
+            toast(`Đã xoá buổi “${nm}”.`, {
+              tone: 'warn',
+              undo: async () => {
+                await restoreSession(snap);
+                toast(`Đã khôi phục “${nm}”.`);
+              },
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

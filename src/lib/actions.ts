@@ -1,5 +1,5 @@
 import { db, uid } from '../db';
-import type { Attendee, AttendStatus, Match, Player, Session } from '../types';
+import type { Attendee, AttendStatus, Match, Player, RatingEvent, Session } from '../types';
 import { LEVELS, type Gender, type LevelLabel } from '../types';
 import { defaultFeeFor } from './money';
 import { applyResult } from './rating';
@@ -564,4 +564,57 @@ export function mandatoryBoundary(
     if (done) return i + 1;
   }
   return rosters.length;
+}
+
+export interface SessionSnapshot {
+  session: Session;
+  matches: Match[];
+}
+
+/**
+ * Xoa buoi va tra ve ban chup de con hoan tac duoc.
+ *
+ * Truoc day viec nay dua sau `confirm()` cua trinh duyet — khi trinh duyet chan
+ * hop thoai (vi du nguoi dung da tick "chan trang nay tao them hop thoai") thi
+ * confirm tra ve false va app khong xoa, cung khong bao gi. Gio xac nhan nam
+ * trong app va co the hoan tac.
+ */
+export async function deleteSession(sessionId: string): Promise<SessionSnapshot> {
+  return db.transaction('rw', db.sessions, db.matches, async () => {
+    const session = await db.sessions.get(sessionId);
+    if (!session) throw new Error('Không tìm thấy buổi.');
+    const matches = await db.matches.where('sessionId').equals(sessionId).toArray();
+    await db.matches.where('sessionId').equals(sessionId).delete();
+    await db.sessions.delete(sessionId);
+    return { session, matches };
+  });
+}
+
+export async function restoreSession(snap: SessionSnapshot): Promise<void> {
+  await db.transaction('rw', db.sessions, db.matches, async () => {
+    await db.sessions.put(snap.session);
+    if (snap.matches.length) await db.matches.bulkPut(snap.matches);
+  });
+}
+
+export interface PlayerSnapshot {
+  player: Player;
+  events: RatingEvent[];
+}
+
+export async function deletePlayer(playerId: string): Promise<PlayerSnapshot> {
+  return db.transaction('rw', db.players, db.ratingEvents, async () => {
+    const player = await db.players.get(playerId);
+    if (!player) throw new Error('Không tìm thấy người chơi.');
+    const events = await db.ratingEvents.where('playerId').equals(playerId).toArray();
+    await db.players.delete(playerId);
+    return { player, events };
+  });
+}
+
+export async function restorePlayer(snap: PlayerSnapshot): Promise<void> {
+  await db.transaction('rw', db.players, db.ratingEvents, async () => {
+    await db.players.put(snap.player);
+    if (snap.events.length) await db.ratingEvents.bulkPut(snap.events);
+  });
 }

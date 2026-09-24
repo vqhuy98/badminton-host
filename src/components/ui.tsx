@@ -322,3 +322,30 @@ export function StepBar({
     </nav>
   );
 }
+
+/**
+ * Hop xac nhan NAM TRONG APP. Khong dung confirm() cua trinh duyet: no co the
+ * bi chan va tra ve false, luc do thao tac im lang khong xay ra gi ca.
+ */
+export function ConfirmSheet({
+  title, body, confirmLabel, onConfirm, onClose, tone = 'danger',
+}: {
+  title: string;
+  body: ReactNode;
+  confirmLabel: string;
+  onConfirm: () => void;
+  onClose: () => void;
+  tone?: 'danger' | 'primary';
+}) {
+  return (
+    <Sheet title={title} onClose={onClose}>
+      <div className="space-y-4">
+        <div className="text-sm text-slate-300">{body}</div>
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="ghost" onClick={onClose}>Huỷ</Button>
+          <Button variant={tone} onClick={onConfirm}>{confirmLabel}</Button>
+        </div>
+      </div>
+    </Sheet>
+  );
+}
