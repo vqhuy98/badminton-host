@@ -1,0 +1,19 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-ink: #0b1220;
+  --color-panel: #131c2e;
+  --color-panel2: #1b2740;
+  --color-line: #263350;
+}
+
+html, body, #root { height: 100%; }
+body {
+  background: var(--color-ink);
+  color: #e5edff;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+input, select, textarea { font-size: 16px; } /* chan iOS tu zoom khi focus */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
