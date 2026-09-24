@@ -82,3 +82,13 @@ file JSON chứa toàn bộ thư viện người chơi và lịch sử rating.
 
 Khi nhập lại, app gộp tự động nếu trùng **Facebook ID / link / số điện thoại**. Chỉ trùng
 tên thì app **hỏi** chứ không tự gộp — gộp nhầm hai người là hỏng rating của cả hai.
+
+## Deploy
+
+```
+npm run deploy      # build + day dist/ len nhanh gh-pages
+```
+
+Site chay tai https://vqhuy98.github.io/badminton-host/ (nhanh `gh-pages`, thu muc goc).
+`vite.config.ts` phai giu `base: '/badminton-host/'` — doi ten repo thi phai doi theo,
+neu khong toan bo asset se 404.
